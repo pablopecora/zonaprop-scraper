@@ -1,27 +1,30 @@
 const ExcelJS = require('exceljs');
-const path = require('path');
+const path    = require('path');
 
 const COLUMNS = [
-  { header: 'Nombre / Dirección',    key: 'Nombre / Dirección',    width: 40 },
-  { header: 'URL',                   key: 'URL',                   width: 60 },
-  { header: 'Precio Publicado (USD)',key: 'Precio Publicado (USD)', width: 22 },
+  { header: 'Nombre / Dirección',     key: 'Nombre / Dirección',     width: 38 },
+  { header: 'URL',                    key: 'URL',                    width: 55 },
+  { header: 'Precio Publicado (USD)', key: 'Precio Publicado (USD)', width: 22 },
+  { header: 'De Pozo',               key: 'De Pozo',                width: 10 },
+  { header: 'Fecha de Entrega',      key: 'Fecha de Entrega',       width: 18 },
   { header: 'm² Cubiertos',          key: 'm² Cubiertos',           width: 14 },
   { header: 'm² Descubiertos',       key: 'm² Descubiertos',        width: 16 },
   { header: 'm² Totales',            key: 'm² Totales',             width: 13 },
   { header: 'USD/m² (calc)',         key: 'USD/m² (calc)',          width: 14 },
-  { header: 'Barrio',               key: 'Barrio',                 width: 20 },
-  { header: 'Expensas ($)',          key: 'Expensas ($)',           width: 14 },
-  { header: 'Cochera',              key: 'Cochera',                width: 10 },
-  { header: 'Baulera',              key: 'Baulera',                width: 10 },
-  { header: 'Features',             key: 'Features',               width: 60 },
+  { header: 'Barrio',               key: 'Barrio',                  width: 20 },
+  { header: 'Expensas ($)',          key: 'Expensas ($)',            width: 15 },
+  { header: 'Cochera',              key: 'Cochera',                 width: 10 },
+  { header: 'Baulera',              key: 'Baulera',                 width: 10 },
+  { header: 'Features',             key: 'Features',                width: 50 },
+  { header: 'Descripción ZonaProp', key: 'Descripción ZonaProp',   width: 80 },
 ];
 
-// Colores
-const COLOR_HEADER_BG   = 'FF1A3C6E';  // azul oscuro
-const COLOR_HEADER_FONT = 'FFFFFFFF';  // blanco
-const COLOR_ROW_ALT     = 'FFF0F4FA';  // azul muy claro (filas alternas)
-const COLOR_SI          = 'FF C8E6C9'.replace(/ /g,''); // verde claro
-const COLOR_NO          = 'FFFCE4EC';  // rojo muy claro
+const C_HEADER_BG    = 'FF1A3C6E';
+const C_HEADER_FONT  = 'FFFFFFFF';
+const C_ROW_ALT      = 'FFF0F4FA';
+const C_SI_GREEN     = 'FFC8E6C9';
+const C_NO_RED       = 'FFFCE4EC';
+const C_POZO_YELLOW  = 'FFFFF9C4';
 
 async function exportToExcel(data, filename) {
   const wb = new ExcelJS.Workbook();
@@ -32,120 +35,126 @@ async function exportToExcel(data, filename) {
     views: [{ state: 'frozen', ySplit: 1 }],
   });
 
-  // ── Columnas ────────────────────────────────────────────────────────────
   ws.columns = COLUMNS;
 
-  // ── Header ──────────────────────────────────────────────────────────────
-  const headerRow = ws.getRow(1);
-  headerRow.height = 28;
+  // ── Header ────────────────────────────────────────────────────────────────
+  const hRow = ws.getRow(1);
+  hRow.height = 30;
   COLUMNS.forEach((col, idx) => {
-    const cell = headerRow.getCell(idx + 1);
-    cell.value = col.header;
-    cell.font = { bold: true, color: { argb: COLOR_HEADER_FONT }, size: 11 };
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_HEADER_BG } };
+    const cell = hRow.getCell(idx + 1);
+    cell.value     = col.header;
+    cell.font      = { bold: true, color: { argb: C_HEADER_FONT }, size: 11 };
+    cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_HEADER_BG } };
     cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-    cell.border = {
-      bottom: { style: 'medium', color: { argb: 'FF0D47A1' } },
-    };
+    cell.border    = { bottom: { style: 'medium', color: { argb: 'FF0D47A1' } } };
   });
 
-  // ── Filas de datos ───────────────────────────────────────────────────────
+  // ── Filas de datos ────────────────────────────────────────────────────────
   data.forEach((prop, rowIdx) => {
-    const row = ws.addRow(COLUMNS.map(c => prop[c.key] ?? ''));
+    const row   = ws.addRow(COLUMNS.map(c => prop[c.key] ?? ''));
     const isAlt = rowIdx % 2 === 1;
 
-    row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-      const colKey = COLUMNS[colNumber - 1].key;
+    row.eachCell({ includeEmpty: true }, (cell, colNum) => {
+      const key = COLUMNS[colNum - 1].key;
 
-      // Fondo alternado
       if (isAlt) {
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_ROW_ALT } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_ROW_ALT } };
       }
 
-      // Alineaciones y formatos por columna
-      if (colKey === 'URL') {
-        // URL como hipervínculo clicable
-        const urlVal = prop['URL'];
-        if (urlVal) {
-          cell.value = { text: urlVal, hyperlink: urlVal };
-          cell.font = { color: { argb: 'FF1565C0' }, underline: true, size: 10 };
+      if (key === 'URL') {
+        const v = prop['URL'];
+        if (v) {
+          cell.value = { text: v, hyperlink: v };
+          cell.font  = { color: { argb: 'FF1565C0' }, underline: true, size: 10 };
         }
         cell.alignment = { vertical: 'middle', wrapText: false };
-      } else if (colKey === 'Precio Publicado (USD)') {
-        if (typeof prop[colKey] === 'number') {
-          cell.numFmt = '"USD "#,##0';
-        }
+
+      } else if (key === 'Precio Publicado (USD)') {
+        if (typeof prop[key] === 'number') cell.numFmt = '"USD "#,##0';
         cell.alignment = { vertical: 'middle', horizontal: 'right' };
-      } else if (['m² Cubiertos', 'm² Descubiertos', 'm² Totales', 'USD/m² (calc)', 'Expensas ($)'].includes(colKey)) {
-        if (typeof prop[colKey] === 'number') {
-          cell.numFmt = colKey === 'Expensas ($)' ? '"$"#,##0' : '#,##0';
-        }
+
+      } else if (['m² Cubiertos','m² Descubiertos','m² Totales','USD/m² (calc)'].includes(key)) {
+        if (typeof prop[key] === 'number') cell.numFmt = '#,##0';
         cell.alignment = { vertical: 'middle', horizontal: 'right' };
-      } else if (colKey === 'Cochera' || colKey === 'Baulera') {
-        const val = prop[colKey];
+
+      } else if (key === 'Expensas ($)') {
+        if (typeof prop[key] === 'number') cell.numFmt = '"$"#,##0';
+        else cell.numFmt = '@'; // texto
+        cell.alignment = { vertical: 'middle', horizontal: 'right' };
+
+      } else if (key === 'Cochera' || key === 'Baulera') {
         cell.alignment = { vertical: 'middle', horizontal: 'center' };
-        if (val === 'Sí') {
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_SI } };
+        if (prop[key] === 'Sí') {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_SI_GREEN } };
           cell.font = { bold: true, color: { argb: 'FF1B5E20' } };
-        } else if (val === 'No') {
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_NO } };
+        } else {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_NO_RED } };
           cell.font = { color: { argb: 'FFB71C1C' } };
         }
-      } else if (colKey === 'Features') {
+
+      } else if (key === 'De Pozo') {
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        if (prop[key] === 'Sí') {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_POZO_YELLOW } };
+          cell.font = { bold: true, color: { argb: 'FFF57F17' } };
+        }
+
+      } else if (key === 'Descripción ZonaProp') {
+        cell.alignment = { vertical: 'top', wrapText: true };
+        cell.font = { size: 9 };
+
+      } else if (key === 'Features') {
         cell.alignment = { vertical: 'middle', wrapText: true };
         cell.font = { size: 9 };
+
       } else {
         cell.alignment = { vertical: 'middle', wrapText: false };
       }
 
-      // Borde inferior suave en todas
-      cell.border = {
-        bottom: { style: 'hair', color: { argb: 'FFCFD8DC' } },
-      };
+      cell.border = { bottom: { style: 'hair', color: { argb: 'FFCFD8DC' } } };
     });
 
-    row.height = 20;
+    row.height = 22;
   });
 
-  // ── Filtro automático en header ──────────────────────────────────────────
   ws.autoFilter = {
     from: { row: 1, column: 1 },
     to:   { row: 1, column: COLUMNS.length },
   };
 
-  // ── Segunda hoja: Notas / Metodología ───────────────────────────────────
+  // ── Hoja metodología ──────────────────────────────────────────────────────
   const wsInfo = wb.addWorksheet('Metodología');
   wsInfo.getColumn(1).width = 80;
-  const info = [
-    ['ZonaProp Scraper — Metodología de cálculo'],
+  [
+    ['ZonaProp Scraper — Metodología'],
     [''],
-    ['m² Totales:'],
-    ['  Si ZonaProp publica "m² tot." directamente, se usa ese valor.'],
-    ['  Si no, se calcula: m² cub + (m² desc × 0.5)'],
-    ['  El m² descubierto (balcón, terraza) se pondera al 50% según la'],
-    ['  convención del mercado inmobiliario argentino.'],
+    ['m² Cubiertos / Totales:'],
+    ['  Extraídos directamente de los íconos icon-scubierta / icon-stotal en la ficha.'],
+    [''],
+    ['m² Descubiertos:'],
+    ['  Calculado como: m² Totales - m² Cubiertos.'],
     [''],
     ['USD/m²:'],
-    ['  Precio publicado ÷ m² Totales (calculados según criterio arriba)'],
+    ['  Precio publicado ÷ m² Totales.'],
     [''],
     ['Cochera / Baulera:'],
-    ['  Se detectan en las características y amenities de cada propiedad.'],
-    ['  Sí = figura mencionada. No = no figura en el listing.'],
+    ['  Detectados en features del listado y en la descripción de la ficha.'],
+    [''],
+    ['De Pozo / Entrega:'],
+    ['  Detectado desde el badge de etapa del card (En Pozo, En Construcción...).'],
     [''],
     ['Expensas:'],
-    ['  Se extrae el valor en $ ARS publicado en el listing de detalle.'],
+    ['  Extraídas del card del listado (data-qa="expensas").'],
     [''],
     [`Generado: ${new Date().toLocaleString('es-AR')}`],
-  ];
-  info.forEach((row, i) => {
-    const r = wsInfo.addRow(row);
-    if (i === 0) r.getCell(1).font = { bold: true, size: 13 };
+  ].forEach((r, i) => {
+    const row = wsInfo.addRow(r);
+    if (i === 0) row.getCell(1).font = { bold: true, size: 13 };
   });
 
-  // ── Guardar ──────────────────────────────────────────────────────────────
   const outPath = path.resolve(filename);
   await wb.xlsx.writeFile(outPath);
-  console.log(`💾  Archivo guardado en: ${outPath}`);
+  console.log(`💾  Guardado en: ${outPath}`);
 }
 
 module.exports = { exportToExcel };
